@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WebShield Lite — URL & File Risk Checker</title>
+  <style>
+    :root{
+      --bg: #0f172a;         /* slate-900 */
+      --panel: #111827ee;    /* gray-900 */
+      --panel-2: #0b1220;    
+      --text: #e5e7eb;       /* gray-200 */
+      --muted: #9ca3af;      /* gray-400 */
+      --brand: #22c55e;      /* green-500 */
+      --warn: #f59e0b;       /* amber-500 */
+      --danger: #ef4444;     /* red-500 */
+      --info: #60a5fa;       /* blue-400 */
+      --card: #111827;       
+      --chip: #1f2937;       
+      --border: #1f2937;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial;
+      background: radial-gradient(1200px 800px at 70% -10%, #1d2a4a 0%, transparent 60%),
+                  radial-gradient(900px 700px at -10% 20%, #1a2e22 0%, transparent 60%),
+                  var(--bg);
+      color:var(--text);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    header{
+      padding:28px 20px 10px;
+      text-align:center;
+    }
+    h1{margin:0;font-size:clamp(24px,3.2vw,40px);font-weight:800;letter-spacing:.2px}
+    .sub{color:var(--muted);margin-top:8px}
+
+    .container{
+      max-width:1000px;margin:24px auto;padding:0 16px 80px;
+      display:grid;grid-template-columns: 1fr; gap:16px;
+    }
+    @media (min-width: 980px){
+      .container{grid-template-columns: 1.2fr .8fr}
+    }
+    .card{
+      background: linear-gradient(180deg, var(--panel) 0%, var(--panel-2) 100%);
+      border:1px solid var(--border);
+      border-radius:18px;padding:18px 16px 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    .section-title{font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin:6px 0 12px}
+
+    input[type="url"], input[type="text"], .drop, .btn{
+      width:100%;
+      border:1px solid var(--border);border-radius:12px;
+      background:#0b1220;color:var(--text);
+      padding:12px 14px;font-size:15px;outline:none;
+    }
+    input[type="url"]::placeholder{color:#6b7280}
+
+    .btn{cursor:pointer;user-select:none;text-align:center}
+    .btn.brand{background:linear-gradient(180deg,#22c55e,#16a34a);border:none}
+    .btn.brand:hover{filter:brightness(1.05)}
+    .btn.ghost{background:#0b1220}
+    .btn.warn{background:linear-gradient(180deg,#f59e0b,#d97706);border:none}
+
+    .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .chip{background:var(--chip);border:1px solid var(--border);padding:6px 10px;border-radius:999px;font-size:12px;color:#d1d5db}
+
+    .result{
+      border-radius:14px;padding:14px;border:1px solid var(--border);
+      background:#0a0f1b
+    }
+    .status{display:inline-flex;align-items:center;gap:8px;font-weight:700}
+    .status.safe{color:var(--brand)}
+    .status.warn{color:var(--warn)}
+    .status.danger{color:var(--danger)}
+
+    .meter{height:12px;background:#0b1220;border-radius:999px;overflow:hidden;border:1px solid var(--border);margin-top:10px}
+    .bar{height:100%;width:0%;background:linear-gradient(90deg,#22c55e,#f59e0b,#ef4444);transition:width .6s ease}
+
+    .list{margin:8px 0 0;padding-left:18px;color:#d1d5db}
+    .muted{color:var(--muted)}
+
+    .drop{
+      border:1.5px dashed #334155;display:grid;place-items:center;height:140px;text-align:center
+    }
+    .drop.dragover{border-color:#93c5fd;background:#0b1424}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
+    .foot{color:#9ca3af;font-size:12px;text-align:center;margin-top:12px}
+    .right small{display:block;color:#9ca3af;margin-top:6px}
+    .pill{display:inline-block;padding:.2em .6em;border-radius:999px;background:#0b1220;border:1px solid var(--border);font-size:12px}
+    .kbd{font-family: ui-monospace, Menlo, Consolas; border:1px solid var(--border);border-bottom:2px solid #000;padding:.1em .4em;border-radius:6px;background:#0b1220}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>WebShield Lite</h1>
+    <div class="sub">Single‑file, offline heuristics for <b>URL</b> & <b>file</b> risk checks (no server needed)</div>
+  </header>
+
+  <main class="container">
+    <!-- LEFT: SCANNERS -->
+    <section class="card left">
+      <div class="section-title">URL checker</div>
+      <div class="row">
+        <input id="urlInput" type="url" placeholder="Paste a link, e.g. https://example.com/login?verify=..." />
+        <button class="btn brand" id="checkUrlBtn">Check Link</button>
+      </div>
+      <div class="chips">
+        <span class="chip">Looks for suspicious TLDs</span>
+        <span class="chip">Detects @ tricks & IP hosts</span>
+        <span class="chip">Flags shorteners</span>
+        <span class="chip">Keyword baiting</span>
+      </div>
+      <div id="urlResult" class="result" style="margin-top:12px;display:none"></div>
+
+      <hr style="border:none;border-top:1px solid var(--border);margin:18px 0"/>
+
+      <div class="section-title">File checker</div>
+      <div id="drop" class="drop">Drag & drop a file here or <span class="pill">click to choose</span>
+        <input id="fileInput" type="file" style="display:none" />
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn brand" id="scanFileBtn">Scan File</button>
+        <button class="btn ghost" id="clearBtn">Clear</button>
+      </div>
+      <div class="meter" style="margin-top:12px"><div class="bar" id="progressBar"></div></div>
+      <div id="fileResult" class="result" style="margin-top:12px;display:none"></div>
+    </section>
+
+    <!-- RIGHT: DETAILS / REPORT -->
+    <aside class="card right">
+      <div class="section-title">Report</div>
+      <div id="reportBox" class="mono" style="font-size:13px;white-space:pre-wrap;min-height:180px;color:#d1d5db">Run a check to see details here.</div>
+      <div class="row" style="margin-top:12px">
+        <button id="downloadBtn" class="btn ghost">Download Report (.txt)</button>
+        <button id="resetBtn" class="btn warn">Reset</button>
+      </div>
+      <small>Tip: press <span class="kbd">Ctrl</span> + <span class="kbd">L</span> to focus the URL bar in most browsers.</small>
+      <div class="foot">This is a heuristic demo. For real protection, use an updated AV/EDR and submit hashes to a trusted threat-intel service.</div>
+    </aside>
+  </main>
+
+  <script>
+    // ---------- Utilities
+    const el = id => document.getElementById(id);
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const nowISO = () => new Date().toISOString();
+
+    // ---------- URL Heuristics
+    const SUSPICIOUS_TLDS = new Set([
+      'zip','mov','click','top','xyz','gq','ml','cf','tk','work','ru','rest','fit','cam','live','quest','country','mom'
+    ]);
+    const SHORTENERS = new Set(['bit.ly','tinyurl.com','t.co','goo.gl','ow.ly','is.gd','buff.ly','rebrand.ly','cutt.ly','rb.gy','shorte.st']);
+    const KEYWORDS = ['login','verify','update','secure','security','account','confirm','invoice','payment','bank','free','gift','winner','download'];
+
+    function analyzeUrl(raw){
+      let score = 0; // 0-100
+      const reasons = [];
+      let u;
+      try{ u = new URL(raw.trim()); }
+      catch(e){ return {ok:false, score:90, status:'danger', reasons:['Not a valid URL'], host:'—', normalized:raw}; }
+
+      const host = u.hostname.toLowerCase();
+      const normalized = u.toString();
+
+      // 1) Suspicious TLD
+      const tld = host.split('.').pop();
+      if(SUSPICIOUS_TLDS.has(tld)){ score += 20; reasons.push(`Suspicious TLD: .${tld}`); }
+
+      // 2) Too many subdomains
+      const parts = host.split('.');
+      if(parts.length >= 4){ score += 12; reasons.push('Many subdomains'); }
+
+      // 3) IP address host
+      if(/^\d{1,3}(?:\.\d{1,3}){3}$/.test(host)){ score += 20; reasons.push('IP address host'); }
+
+      // 4) Punycode / IDN homograph risk
+      if(host.includes('xn--')){ score += 18; reasons.push('Punycode (IDN)'); }
+
+      // 5) @ sign trick (userinfo)
+      if(normalized.includes('@') && !u.username && !u.password){ score += 15; reasons.push('Contains @ in path/query'); }
+      if(u.username || u.password){ score += 25; reasons.push('Contains userinfo before host'); }
+
+      // 6) Port other than 80/443
+      if(u.port && u.port !== '80' && u.port !== '443'){ score += 8; reasons.push(`Non‑standard port: ${u.port}`); }
+
+      // 7) Shorteners
+      if(SHORTENERS.has(host)){ score += 15; reasons.push('URL shortener'); }
+
+      // 8) Keyword baiting
+      const lowerFull = normalized.toLowerCase();
+      const hits = KEYWORDS.filter(k => lowerFull.includes(k));
+      if(hits.length){ score += Math.min(6 * hits.length, 18); reasons.push('Keywords: ' + hits.join(', ')); }
+
+      // 9) Length checks
+      if(normalized.length > 100){ score += 10; reasons.push('Very long URL'); }
+      if(u.search.length > 80){ score += 8; reasons.push('Long query string'); }
+      if((u.hash||'').length > 60){ score += 4; reasons.push('Long fragment'); }
+
+      score = Math.min(100, score);
+      const status = score < 30 ? 'safe' : score < 60 ? 'warn' : 'danger';
+      return {ok:true, score, status, reasons, host, normalized};
+    }
+
+    // ---------- File Heuristics
+    const RISKY_EXT = new Set(['exe','msi','apk','bat','cmd','js','vbs','scr','pif','jar','ps1','hta','dll','sys','com','reg','lnk','iso','img','dmg','pkg']);
+    const BLACKLIST_HASHES = new Set([
+      // Demo: add known-bad SHA-256 hashes here (lowercase hex strings)
+      // 'aaaaaaaa...'
+    ]);
+
+    async function sha256(file){
+      const buf = await file.arrayBuffer();
+      const hash = await crypto.subtle.digest('SHA-256', buf);
+      return [...new Uint8Array(hash)].map(b=>b.toString(16).padStart(2,'0')).join('');
+    }
+
+    async function readHeader(file, n=8){
+      const blob = file.slice(0,n);
+      const buf = await blob.arrayBuffer();
+      return new Uint8Array(buf);
+    }
+
+    function magic(bytes){
+      const s = Array.from(bytes).map(b=>b.toString(16).padStart(2,'0')).join(' ');
+      return s;
+    }
+
+    async function analyzeFile(file){
+      let score = 0; const reasons = [];
+      const name = file.name || 'unnamed';
+      const size = file.size;
+      const ext = (name.split('.').pop() || '').toLowerCase();
+
+      // 1) Extension risk
+      if(RISKY_EXT.has(ext)){ score += 35; reasons.push(`Risky extension .${ext}`); }
+
+      // 2) Size extremes
+      if(size > 150*1024*1024){ score += 8; reasons.push('Very large file (>150MB)'); }
+      if(size === 0){ score += 20; reasons.push('Empty file'); }
+
+      // 3) Magic headers
+      const head = await readHeader(file, 8);
+      const h0 = head[0], h1 = head[1], h2 = head[2], h3 = head[3];
+      if(h0===0x4d && h1===0x5a){ score += 30; reasons.push('PE executable (MZ)'); }
+      else if(h0===0x7f && h1===0x45 && h2===0x4c && h3===0x46){ score += 28; reasons.push('ELF binary'); }
+      else if(h0===0xcf && h1===0xfa && h2===0xed && (h3===0xfe||h3===0xcf)){ score += 28; reasons.push('Mach-O binary'); }
+      else if(h0===0x25 && h1===0x50 && h2===0x44 && h3===0x46){ score += 6; reasons.push('PDF file'); }
+      else if(h0===0x50 && h1===0x4b){ score += 10; reasons.push('Archive (ZIP/JAR/Office)'); }
+
+      // 4) Script shebang (#!)
+      if(h0===0x23 && h1===0x21){ score += 15; reasons.push('Script with shebang'); }
+
+      // 5) Hash check
+      const hash = await sha256(file);
+      if(BLACKLIST_HASHES.has(hash)){ score = 100; reasons.push('Hash matches blacklist'); }
+
+      score = Math.min(100, score);
+      const status = score < 30 ? 'safe' : score < 60 ? 'warn' : 'danger';
+      return {name, size, ext, score, status, reasons, hash, headHex: magic(head)};
+    }
+
+    // ---------- UI Logic
+    const urlInput = el('urlInput');
+    const urlResult = el('urlResult');
+    const fileInput = el('fileInput');
+    const drop = el('drop');
+    const fileResult = el('fileResult');
+    const progressBar = el('progressBar');
+    const reportBox = el('reportBox');
+
+    let lastReport = [];
+
+    function renderUrlResult(r){
+      urlResult.style.display='block';
+      const cls = r.status==='safe'?'safe':(r.status==='warn'?'warn':'danger');
+      urlResult.innerHTML = `
+        <div class="status ${cls}">${r.status==='safe'?'✅ Safe':'⚠️ Warning'} — score ${r.score}/100</div>
+        <div class="muted" style="margin-top:6px">${r.normalized}</div>
+        <ul class="list">${r.reasons.map(x=>`<li>${x}</li>`).join('') || '<li>No obvious issues.</li>'}</ul>
+      `;
+
+      lastReport.push({ type:'url', when: nowISO(), input:r.normalized, score:r.score, status:r.status, reasons:r.reasons });
+      updateReportBox();
+      setMeter(r.score);
+    }
+
+    function renderFileResult(info){
+      fileResult.style.display='block';
+      const cls = info.status==='safe'?'safe':(info.status==='warn'?'warn':'danger');
+      fileResult.innerHTML = `
+        <div class="status ${cls}">${info.status==='safe'?'✅ Likely safe':'⚠️ Caution'} — score ${info.score}/100</div>
+        <div style="margin-top:6px">
+          <div><b>Name:</b> ${info.name}</div>
+          <div><b>Size:</b> ${fmtSize(info.size)} <span class="muted">(ext .${info.ext||'—'})</span></div>
+          <div><b>SHA‑256:</b> <span class="mono">${info.hash}</span></div>
+          <div><b>Header:</b> <span class="mono">${info.headHex}</span></div>
+        </div>
+        <ul class="list">${info.reasons.map(x=>`<li>${x}</li>`).join('') || '<li>No obvious issues.</li>'}</ul>
+      `;
+
+      lastReport.push({ type:'file', when: nowISO(), name:info.name, size:info.size, ext:info.ext, score:info.score, status:info.status, reasons:info.reasons, sha256:info.hash, header:info.headHex });
+      updateReportBox();
+      setMeter(info.score);
+    }
+
+    function fmtSize(bytes){
+      if(bytes===0) return '0 B';
+      const k = 1024; const sizes=['B','KB','MB','GB','TB'];
+      const i = Math.floor(Math.log(bytes)/Math.log(k));
+      return (bytes/Math.pow(k,i)).toFixed(2)+' '+sizes[i];
+    }
+
+    function setMeter(score){
+      const pct = Math.min(100, Math.max(0, score));
+      progressBar.style.width = pct + '%';
+    }
+
+    function updateReportBox(){
+      reportBox.textContent = lastReport.length ? JSON.stringify(lastReport, null, 2) : 'Run a check to see details here.';
+    }
+
+    // ---------- Events: URL
+    el('checkUrlBtn').addEventListener('click', ()=>{
+      const raw = urlInput.value.trim();
+      const res = analyzeUrl(raw);
+      renderUrlResult(res);
+    });
+
+    // Submit on Enter
+    urlInput.addEventListener('keydown', e=>{
+      if(e.key==='Enter'){ e.preventDefault(); el('checkUrlBtn').click(); }
+    });
+
+    // ---------- Events: File
+    drop.addEventListener('click', ()=> fileInput.click());
+    drop.addEventListener('dragover', e=>{ e.preventDefault(); drop.classList.add('dragover'); });
+    drop.addEventListener('dragleave', ()=> drop.classList.remove('dragover'));
+    drop.addEventListener('drop', e=>{
+      e.preventDefault(); drop.classList.remove('dragover');
+      if(e.dataTransfer.files && e.dataTransfer.files[0]){
+        fileInput.files = e.dataTransfer.files;
+      }
+    });
+
+    el('scanFileBtn').addEventListener('click', async ()=>{
+      const f = fileInput.files && fileInput.files[0];
+      if(!f){ alert('Choose a file first.'); return; }
+      // fake smooth progress
+      progressBar.style.width='0%';
+      for(let i=0;i<=100;i+=10){ await sleep(60); setMeter(i); }
+      const info = await analyzeFile(f);
+      renderFileResult(info);
+    });
+
+    el('clearBtn').addEventListener('click', ()=>{
+      fileInput.value = '';
+      fileResult.style.display='none';
+      setMeter(0);
+    });
+
+    // ---------- Report actions
+    el('downloadBtn').addEventListener('click', ()=>{
+      const blob = new Blob([reportBox.textContent], {type:'text/plain'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'webshield_report.txt';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+    });
+
+    el('resetBtn').addEventListener('click', ()=>{
+      lastReport = []; updateReportBox();
+      urlInput.value = ''; urlResult.style.display='none';
+      fileInput.value = ''; fileResult.style.display='none';
+      setMeter(0);
+    });
+
+  </script>
+</body>
+</html>
